@@ -26,20 +26,31 @@ public class BoardRenderer : MonoBehaviour
     [Header("Gameplay Elements")]
     public GameObject selectionQuad;
 
+    private Material oldMat;
+    public Material selectionMaterial;
+
     private Camera cam;
 
     private Int2 selectedSpace = new Int2(-1, -1);
 
+    private float GridSpaceSize
+    {
+        get
+        {
+            return (boardSize / grid.gridSize);
+        }
+    }
+
   private void InitializeBoard()
   {
-    grid = new Grid(8);
+        grid = new Grid(8);
 
         //Create collider for finding which space the mouse is over
         var col = gameObject.AddComponent<BoxCollider>();
         col.center = new Vector3(boardSize / 2, -0.5f, boardSize / 2);
 
         //The origin of the board is not exactly in the corner so we need to offset it back and to the left by half of a spaces width to fix this
-        col.center -= new Vector3(1, 0, 1) * (boardSize / grid.gridSize) * 0.5f;
+        col.center -= new Vector3(1, 0, 1) * GridSpaceSize * 0.5f;
         col.size = new Vector3(boardSize, 1, boardSize);
   }
 
@@ -167,11 +178,11 @@ public class BoardRenderer : MonoBehaviour
             var delta = hit.point - transform.position;
 
             //This delta will be relative to the origin that is offset up and to the right of the true origin, so we need to fix that
-            delta += new Vector3(1, 0, 1) * (boardSize / grid.gridSize) * 0.5f;
+            delta += new Vector3(1, 0, 1) * GridSpaceSize * 0.5f;
 
             //Divide that delta by the spacing between cells, flooring that value = int grid position
-            var x = Mathf.FloorToInt(delta.x / (boardSize / grid.gridSize)); // Use X for horizontal position
-            var y = Mathf.FloorToInt(delta.z / (boardSize / grid.gridSize)); // Use Z for vertical position
+            var x = Mathf.FloorToInt(delta.x / GridSpaceSize); // Use X for horizontal position
+            var y = Mathf.FloorToInt(delta.z / GridSpaceSize); // Use Z for vertical position
 
             //If the found space falls out of bounds, return -1
             if (x > grid.gridSize - 1 || y > grid.gridSize - 1 || x < 0 || y < 0)
@@ -210,13 +221,21 @@ public class BoardRenderer : MonoBehaviour
             //Else, we have successfully found a piece and therefor we can highlight the space
             selectionQuad.SetActive(true);
 
+            //1.25 is the board size divided by the dimensions of the board
             selectionQuad.transform.position = new Vector3(space.x * 1.25f, selectionQuad.transform.position.y, space.y * 1.25f);
 
+            var gridSpace = grid.gridSpaces[space.x, space.y];
+
             //This is where we will select the piece
-            if (Input.GetMouseButtonDown(0))
+            if (Input.GetMouseButtonDown(0) && gridSpace.piece != null)
             {
-                //This is where we should highlight the possible moves
                 selectedSpace = space;
+
+                oldMat = gridSpace.piece.renderer.GetComponent<MeshRenderer>().material;
+                gridSpace.piece.renderer.GetComponent<MeshRenderer>().material = selectionMaterial;
+
+                //Check the possible moves of the selected piece
+                //This is where we should highlight the possible moves
             }
         }
 
@@ -225,6 +244,9 @@ public class BoardRenderer : MonoBehaviour
         {
             if (Input.GetMouseButtonDown(0))
             {
+                var gridSpace = grid.gridSpaces[selectedSpace.x, selectedSpace.y];
+                gridSpace.piece.renderer.GetComponent<MeshRenderer>().material = oldMat;
+
                 //Temporary deselect method
                 selectedSpace = new Int2(-1, -1);
             }
